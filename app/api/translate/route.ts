@@ -1,8 +1,6 @@
 import { streamText } from 'ai';
 import { google } from '@ai-sdk/google';
 
-// ВАЖНО: Edge Runtime гарантирует отсутствие буферизации (настоящий стриминг)
-export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
@@ -17,10 +15,27 @@ export async function POST(req: Request) {
       model: google('gemini-2.5-flash'),
       system: `You are a real-time translator. Translate to ${targetLang}. Return strictly the translation.`,
       prompt: prompt,
+      temperature: 0.2,
     });
 
-    // Отдаем чистый поток без кэширования
-    return new Response(result.textStream, {
+    // ПУЛЕНЕПРОБИВАЕМЫЙ СТРИМИНГ ДЛЯ ПРОДАКШЕНА
+    // Вручную конвертируем текст в байты (Uint8Array), как требует сервер Vercel
+    const encoder = new TextEncoder();
+    const customStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const textChunk of result.textStream) {
+            controller.enqueue(encoder.encode(textChunk));
+          }
+        } catch (err) {
+          console.error('Stream reading error:', err);
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(customStream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
