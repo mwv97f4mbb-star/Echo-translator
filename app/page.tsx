@@ -36,7 +36,7 @@ export default function VoiceTranslator() {
 
     const timeoutId = setTimeout(() => {
       streamTranslation(originalText);
-    }, 800);
+    }, 400);
 
     return () => clearTimeout(timeoutId);
   }, [originalText, languagePair]);
@@ -241,7 +241,7 @@ export default function VoiceTranslator() {
                       initial={{ opacity: 0, filter: 'blur(8px)' }}
                       animate={{ opacity: 1, filter: 'blur(0px)' }}
                       // duration: 1.2 замедляет анимацию, делая её очень плавной
-                      transition={{ duration: 1.2, ease: "easeOut" }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
                     >
                       {char}
                     </motion.span>
