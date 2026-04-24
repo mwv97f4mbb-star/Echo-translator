@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { Settings, Mic, MicOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Справочник языков для умного маппинга
 const langConfig: Record<string, { name: string, code: string }> = {
   'RU': { name: 'Russian', code: 'ru-RU' },
   'EN': { name: 'English', code: 'en-US' },
@@ -22,14 +21,13 @@ export default function VoiceTranslator() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Умное определение языков
   const [srcKey, tgtKey] = languagePair.split(' - ');
   const targetLang = langConfig[tgtKey]?.name || 'English';
   const sourceLangCode = langConfig[srcKey]?.code || 'ru-RU';
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<any>(null);
-  const silenceTimerRef = useRef<any>(null); // Таймер для отслеживания тишины
+  const silenceTimerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!originalText.trim()) return;
@@ -41,7 +39,6 @@ export default function VoiceTranslator() {
     return () => clearTimeout(timeoutId);
   }, [originalText, languagePair]);
 
-  // Очистка таймеров при закрытии компонента
   useEffect(() => {
     return () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -90,6 +87,13 @@ export default function VoiceTranslator() {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      streamTranslation(originalText);
+    }
+  };
+
   const toggleListening = () => {
     if (isListening) {
       if (recognitionRef.current) recognitionRef.current.stop();
@@ -98,10 +102,11 @@ export default function VoiceTranslator() {
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Безопасная проверка для iOS Safari
+    const SpeechRecognition = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null;
     
     if (!SpeechRecognition) {
-      alert("Ваш браузер не поддерживает голосовой ввод. Используйте Google Chrome.");
+      alert("К сожалению, Apple блокирует Web Speech API в вашем браузере. Используйте десктопный Chrome.");
       return;
     }
 
@@ -124,12 +129,9 @@ export default function VoiceTranslator() {
       }
       setOriginalText(fullTranscript);
 
-      // СБРОС ТАЙМЕРА ТИШИНЫ
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       
-      // Устанавливаем новый таймер: если молчим 3 секунды - выключаем
       silenceTimerRef.current = setTimeout(() => {
-        // Выключаем только если не стоит режим "Always on"
         if (recognitionRef.current && !alwaysOn) {
           recognitionRef.current.stop();
           setIsListening(false);
@@ -141,6 +143,7 @@ export default function VoiceTranslator() {
       console.error('Ошибка микрофона:', event.error);
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setIsListening(false);
+        alert("Пожалуйста, разрешите доступ к микрофону в настройках Safari.");
       }
     };
 
@@ -161,7 +164,7 @@ export default function VoiceTranslator() {
     <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-purple-500/30">
       <header className="flex items-center justify-between px-4 py-4 sm:px-6 border-b border-zinc-800/50">
         <div className="flex items-center gap-4">
-          <button className="p-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-zinc-400 hover:text-zinc-100">
+          <button className="p-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-zinc-400 hover:text-zinc-100 cursor-pointer touch-manipulation">
             <Settings className="w-5 h-5" />
           </button>
           
@@ -169,10 +172,9 @@ export default function VoiceTranslator() {
             <button
               onClick={() => {
                 setAlwaysOn(!alwaysOn);
-                // Если включили Always On, очищаем таймер тишины
                 if (!alwaysOn && silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
               }}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${alwaysOn ? 'bg-purple-500' : 'bg-zinc-800'}`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer touch-manipulation ${alwaysOn ? 'bg-purple-500' : 'bg-zinc-800'}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${alwaysOn ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
@@ -185,7 +187,8 @@ export default function VoiceTranslator() {
         <select 
           value={languagePair} 
           onChange={(e) => setLanguagePair(e.target.value)}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-md px-4 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none cursor-pointer"
+          disabled={isLoading || isListening}
+          className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-md px-4 py-2 text-sm focus:ring-1 focus:ring-purple-500 outline-none cursor-pointer touch-manipulation"
         >
           <option value="RU - EN">RU - EN</option>
           <option value="RU - PL">RU - PL</option>
@@ -210,6 +213,7 @@ export default function VoiceTranslator() {
               <textarea
                 value={originalText}
                 onChange={(e) => setOriginalText(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Speak into the microphone or type..."
                 className={`w-full h-full min-h-[180px] md:min-h-full resize-none bg-zinc-900 border rounded-xl p-4 text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-all ${isListening ? 'border-red-500/50' : 'border-zinc-800 focus:border-zinc-700'}`}
               />
@@ -238,9 +242,8 @@ export default function VoiceTranslator() {
                   {translatedText.split('').map((char, i) => (
                     <motion.span
                       key={i}
-                      initial={{ opacity: 0, filter: 'blur(8px)' }}
+                      initial={{ opacity: 0, filter: 'blur(4px)' }}
                       animate={{ opacity: 1, filter: 'blur(0px)' }}
-                      // duration: 1.2 замедляет анимацию, делая её очень плавной
                       transition={{ duration: 0.5, ease: "easeOut" }}
                     >
                       {char}
@@ -257,7 +260,7 @@ export default function VoiceTranslator() {
       <footer className="p-6 sm:p-8 flex justify-center">
         <button
           onClick={toggleListening}
-          className={`group relative p-6 rounded-full transition-all duration-300 ${
+          className={`group relative p-6 rounded-full transition-all duration-300 cursor-pointer touch-manipulation ${
             isListening
               ? "bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]"
               : "bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)]"
