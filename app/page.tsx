@@ -238,9 +238,10 @@ export default function VoiceTranslator() {
                   {translatedText.split('').map((char, i) => (
                     <motion.span
                       key={i}
-                      initial={{ opacity: 0, filter: 'blur(4px)' }}
+                      initial={{ opacity: 0, filter: 'blur(8px)' }}
                       animate={{ opacity: 1, filter: 'blur(0px)' }}
-                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      // duration: 1.2 замедляет анимацию, делая её очень плавной
+                      transition={{ duration: 1.2, ease: "easeOut" }}
                     >
                       {char}
                     </motion.span>
