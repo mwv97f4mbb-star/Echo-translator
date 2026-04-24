@@ -34,7 +34,7 @@ export default function VoiceTranslator() {
 
     const timeoutId = setTimeout(() => {
       streamTranslation(originalText);
-    }, 400);
+    }, 275);
 
     return () => clearTimeout(timeoutId);
   }, [originalText, languagePair]);
