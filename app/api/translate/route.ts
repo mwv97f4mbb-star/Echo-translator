@@ -1,6 +1,8 @@
 import { streamText } from 'ai';
 import { google } from '@ai-sdk/google';
 
+// ВАЖНО: Возвращаем Edge Runtime. Именно он отключает буферизацию на Vercel!
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
@@ -18,30 +20,8 @@ export async function POST(req: Request) {
       temperature: 0.2,
     });
 
-    // ПУЛЕНЕПРОБИВАЕМЫЙ СТРИМИНГ ДЛЯ ПРОДАКШЕНА
-    // Вручную конвертируем текст в байты (Uint8Array), как требует сервер Vercel
-    const encoder = new TextEncoder();
-    const customStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const textChunk of result.textStream) {
-            controller.enqueue(encoder.encode(textChunk));
-          }
-        } catch (err) {
-          console.error('Stream reading error:', err);
-        } finally {
-          controller.close();
-        }
-      }
-    });
-
-    return new Response(customStream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-      },
-    });
+    // На Edge-сервере этот метод автоматически разбивает текст на байты и стримит
+    return result.toTextStreamResponse();
 
   } catch (error: any) {
     console.error('API Error:', error);
