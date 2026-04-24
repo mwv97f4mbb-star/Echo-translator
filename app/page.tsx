@@ -53,7 +53,7 @@ export default function VoiceTranslator() {
     abortControllerRef.current = new AbortController();
     setIsLoading(true);
     setError(null);
-    setTranslatedText("");
+    
 
     try {
       const response = await fetch('/api/translate', {
